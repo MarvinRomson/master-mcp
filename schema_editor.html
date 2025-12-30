@@ -1,0 +1,246 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Schema Editor</title>
+    <!-- JSONEditor styles from CDN -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/jsoneditor@latest/dist/jsoneditor.min.css"
+    />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #fafafa;
+      }
+      header {
+        background: #111827;
+        color: #f9fafb;
+        padding: 12px 20px;
+      }
+      .container {
+        padding: 16px 20px 32px 20px;
+      }
+      #editor {
+        height: 600px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #ffffff;
+      }
+      .actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .delete-controls {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      button {
+        cursor: pointer;
+        border-radius: 4px;
+        border: 1px solid #111827;
+        background: #111827;
+        color: #f9fafb;
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+      button.secondary {
+        background: #ffffff;
+        color: #111827;
+      }
+      .status {
+        font-size: 13px;
+        color: #4b5563;
+      }
+      .error {
+        color: #b91c1c;
+      }
+      input[type="text"] {
+        padding: 4px 8px;
+        font-size: 13px;
+        border-radius: 4px;
+        border: 1px solid #d1d5db;
+        min-width: 260px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 style="margin: 0; font-size: 18px;">Master-MCP Tools Schema Editor</h1>
+      <div style="font-size: 13px; opacity: 0.8;">Edit the JSON schema for tools exposed by Master-MCP.</div>
+    </header>
+    <div class="container">
+      <!-- Raw JSON from server, consumed by client-side JS -->
+      <script id="schema-data" type="application/json">SCHEMA_JSON_PLACEHOLDER</script>
+
+      <div id="editor"></div>
+
+      <form id="schema-form" action="/update" method="post">
+        <!-- This hidden field will be populated with pretty-printed JSON on submit -->
+        <input type="hidden" name="schema" id="schema-input" />
+        <div class="actions">
+          <button type="submit">Save</button>
+          <button type="button" class="secondary" id="format-btn">Format JSON</button>
+          <span class="status" id="status">JSON is loaded.</span>
+        </div>
+        <div class="delete-controls">
+          <input
+            type="text"
+            id="delete-path"
+            placeholder="Path to key (e.g. 0.tools.1.name)"
+          />
+          <button type="button" class="secondary" id="delete-btn">Delete path</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- JSONEditor script from CDN -->
+    <script src="https://unpkg.com/jsoneditor@latest/dist/jsoneditor.min.js"></script>
+    <script>
+      (function () {
+        const container = document.getElementById('editor');
+        const statusEl = document.getElementById('status');
+        const form = document.getElementById('schema-form');
+        const hiddenInput = document.getElementById('schema-input');
+        const formatBtn = document.getElementById('format-btn');
+        const deletePathInput = document.getElementById('delete-path');
+        const deleteBtn = document.getElementById('delete-btn');
+
+        // Create JSON editor instance
+        const editor = new JSONEditor(container, {
+          mode: 'tree',
+          modes: ['tree', 'code'], // allow switching between tree and code views
+          onError: function (err) {
+            statusEl.textContent = 'Error: ' + err.toString();
+            statusEl.classList.add('error');
+          },
+          onChange: function () {
+            statusEl.textContent = 'Unsaved changes';
+            statusEl.classList.remove('error');
+          }
+        });
+
+        // Load initial data from the embedded <script type="application/json">
+        (function loadInitial() {
+          const rawTag = document.getElementById('schema-data');
+          let raw = rawTag ? rawTag.textContent : '[]';
+          if (!raw || !raw.trim()) {
+            raw = '[]';
+          }
+          try {
+            const parsed = JSON.parse(raw);
+            editor.set(parsed);
+            statusEl.textContent = 'JSON is loaded.';
+          } catch (e) {
+            console.error('Failed to parse schema JSON from server:', e);
+            editor.set([]);
+            statusEl.textContent = 'Loaded empty array because stored JSON is invalid.';
+            statusEl.classList.add('error');
+          }
+        })();
+
+        // Helper to get JSON safely and pretty-print it
+        function getPrettyJSON() {
+          const data = editor.get(); // may throw if invalid
+          return JSON.stringify(data, null, 2);
+        }
+
+        // Format JSON in-place in the editor
+        formatBtn.addEventListener('click', function () {
+          try {
+            const pretty = getPrettyJSON();
+            editor.update(JSON.parse(pretty));
+            statusEl.textContent = 'Formatted JSON.';
+            statusEl.classList.remove('error');
+          } catch (err) {
+            statusEl.textContent = 'Invalid JSON: ' + err.message;
+            statusEl.classList.add('error');
+          }
+        });
+
+        // Delete a key/path from the JSON structure
+        function deleteByPath(obj, path) {
+          if (!path) {
+            throw new Error('Path is empty');
+          }
+          const parts = path.split('.');
+          let current = obj;
+
+          for (let i = 0; i < parts.length - 1; i++) {
+            const key = parts[i];
+            const index = Number(key);
+
+            if (Array.isArray(current) && Number.isInteger(index)) {
+              if (index < 0 || index >= current.length) {
+                throw new Error('Index out of range at part "' + key + '"');
+              }
+              current = current[index];
+            } else {
+              if (!(key in current)) {
+                throw new Error('Key not found: "' + key + '"');
+              }
+              current = current[key];
+            }
+          }
+
+          const last = parts[parts.length - 1];
+          const lastIndex = Number(last);
+          if (Array.isArray(current) && Number.isInteger(lastIndex)) {
+            if (lastIndex < 0 || lastIndex >= current.length) {
+              throw new Error('Index out of range at final part "' + last + '"');
+            }
+            current.splice(lastIndex, 1);
+          } else {
+            if (!(last in current)) {
+              throw new Error('Key not found at final part: "' + last + '"');
+            }
+            delete current[last];
+          }
+        }
+
+        deleteBtn.addEventListener('click', function () {
+          const path = (deletePathInput.value || '').trim();
+          if (!path) {
+            alert('Please enter a path to delete.');
+            return;
+          }
+          try {
+            const data = editor.get();
+            deleteByPath(data, path);
+            editor.set(data);
+            statusEl.textContent = 'Deleted path: ' + path;
+            statusEl.classList.remove('error');
+          } catch (err) {
+            console.error('Failed to delete path', err);
+            statusEl.textContent = 'Delete failed: ' + err.message;
+            statusEl.classList.add('error');
+            alert('Delete failed: ' + err.message);
+          }
+        });
+
+        // On submit, validate JSON and send pretty-printed version
+        form.addEventListener('submit', function (e) {
+          try {
+            const pretty = getPrettyJSON();
+            hiddenInput.value = pretty;
+            statusEl.textContent = 'Saving...';
+            statusEl.classList.remove('error');
+          } catch (err) {
+            e.preventDefault();
+            statusEl.textContent = 'Invalid JSON: ' + err.message;
+            statusEl.classList.add('error');
+            alert('Cannot save: invalid JSON. ' + err.message);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
+

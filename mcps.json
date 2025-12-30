@@ -1,0 +1,14 @@
+{
+    "chart": {
+        "command": "npx",
+        "args": ["-y", "@antv/mcp-server-chart"]
+    },
+    "airbnb": {
+        "command": "npx",
+        "args": ["-y", "@openbnb/mcp-server-airbnb"]
+    },
+    "echarts": {
+        "command": "npx",
+        "args": ["-y", "mcp-echarts"]
+    }
+}
