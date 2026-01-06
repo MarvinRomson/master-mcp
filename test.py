@@ -11,7 +11,7 @@ async def main():
     t = await client.session.list_tools()
     print(t)
     # test tool calling
-    r = await client('chart-generate_area_chart', {'data': [{'time': '0', 'value': 0}, {'time': '1', 'value': 0}]})
+    r = await client('chart-generate_area_chart', {'data': [{"time": "0", "value": 0}, {"time": "1", "value": 0}]})
     print(r)
     await client.cleanup()
     print("FINISHED")

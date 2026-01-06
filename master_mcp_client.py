@@ -256,19 +256,21 @@ def load_mcp_configs():
 
 @asynccontextmanager
 async def main(_server):
+    global master
     configs = load_mcp_configs()
     master = await MasterMCP.create(configs)
     tools = await master.list_tools()
 
-    @_server.list_tools()
-    async def list_tools():
-        # load it from file
-        return await master.list_tools()
+    # @_server.list_tools()
+    # async def list_tools():
+    #     # load it from file
+    #     logger.info("Calling to list the tools")
+    #     return await master.list_tools()
 
-    @_server.call_tool()
-    async def call_tool(name, arguments):
-        tool_exec = await master.call_tool(name, arguments)
-        return tool_exec
+    # @_server.call_tool()
+    # async def call_tool(name, arguments):
+    #     tool_exec = await master.call_tool(name, arguments)
+    #     return tool_exec
 
     try:
         yield "connected"
@@ -277,6 +279,19 @@ async def main(_server):
 
 
 server = Server("master-mcp-server", lifespan=main)
+
+# workaround with global master - essential to make it working with mcp-proxy
+master = None
+@server.list_tools()
+async def list_tools():
+    # load it from file
+    logger.info("Calling to list the tools")
+    return await master.list_tools()
+
+@server.call_tool()
+async def call_tool(name, arguments):
+    tool_exec = await master.call_tool(name, arguments)
+    return tool_exec
 
 
 async def server_run():
