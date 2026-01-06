@@ -239,5 +239,19 @@ These are not fully implemented yet, but the architecture is oriented around the
 - Tools heirarchy mechanics
 - Tools orchestration
 
-Contributions and ideas are welcome.
+---
+
+## 🤝 Contribute & Collaborate
+
+If you're interested in contributing, testing new detection methods, or exploring related projects, feel free to contribute and reach me out — collaboration is welcome!
+
+📩 Contact: marvinromson@gmail.com
+and [LinkedIn](https://www.linkedin.com/in/roman-smirnov-09165b127/)
+
+---
+
+## ❤️ Support
+
+If you find this project helpful or use it in your research, you can support further development:  
+📩 Contact: marvinromson@gmail.com
 
