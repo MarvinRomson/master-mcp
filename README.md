@@ -4,7 +4,7 @@ TDS Blogpost with evidence of importance [link](https://towardsdatascience.com/m
 
 ## Master-MCP
 
-Master-MCP is a **proxy MCP server** that can connect to any number of other MCP servers and expose all of their tools through a **single stdio MCP endpoint**.
+Master-MCP is a **proxy MCP server** that can connect to any number of other MCP servers and expose all of their tools through a **single MCP endpoint** (stdio or remote through [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)).
 
 You can plug Master-MCP into an agent / LLM client (e.g. Claude Desktop, Cline, custom MCP client) as if it were just one MCP server, and it will internally fan out to multiple underlying MCPs, unify their tools, and provide a small web UI to edit tool schemas.
 
