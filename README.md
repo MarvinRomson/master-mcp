@@ -1,6 +1,6 @@
 ![Master-MCP](docs/gemini-gen-cover.png)
 
-TDS Blogpost with evidence of importance ![link](https://towardsdatascience.com/master-mcp-as-a-way-to-keep-mcps-useful-in-agentic-pipelines/)
+TDS Blogpost with evidence of importance [link](https://towardsdatascience.com/master-mcp-as-a-way-to-keep-mcps-useful-in-agentic-pipelines/)
 
 ## Master-MCP
 
@@ -176,7 +176,7 @@ You can now point any MCP-aware agent at this server using stdio transport.
 
 > Note: `master_mcp_server.py` is a placeholder entry for a custom / dedicated MCP server implementation; the current working entry point for the proxy is `master_mcp_client.py`.
 
-### Using HTTP transport through ![mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)
+### Using HTTP transport through [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)
 
 ```
 npx mcp-proxy \
