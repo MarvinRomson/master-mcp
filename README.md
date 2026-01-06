@@ -1,6 +1,6 @@
 ![Master-MCP](docs/gemini-gen-cover.png)
 
-Blogpost with evidence of importance - pending
+TDS Blogpost with evidence of importance ![link](https://towardsdatascience.com/master-mcp-as-a-way-to-keep-mcps-useful-in-agentic-pipelines/)
 
 ## Master-MCP
 
@@ -27,16 +27,11 @@ This repository contains a minimal Python implementation of such a proxy on top 
 - ✏️ **Built‑in schema editor UI**  
   A small FastAPI + Uvicorn web app (`schema_editor.py`) is started automatically (default on port `8001`) so you can edit the tools JSON schema live in your browser.
 
-- 🛡️ **Future-ready for UI, security, and preprocessing**  
-  The client code (`master_mcp_client.py`) is designed to host additional features such as:
-  - Conversational UI to configure prompts and choose tools
-  - Security controls (allow/deny lists, confirmation flows, etc.)
-  - Pre‑ and post‑processing of tool calls
-  - App‑level parameters and policies
-
 ---
 
 ## Schema editor screenshot
+
+The schema editor is being launched at `localhost:8001`
 
 ![Schema editor](docs/schema-editor.png)
 ![Remove feature](docs/remove.png)
@@ -180,6 +175,14 @@ This will:
 You can now point any MCP-aware agent at this server using stdio transport.
 
 > Note: `master_mcp_server.py` is a placeholder entry for a custom / dedicated MCP server implementation; the current working entry point for the proxy is `master_mcp_client.py`.
+
+### Using HTTP transport through ![mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)
+
+```
+npx mcp-proxy \
+  --port 3333 \
+  python master_mcp_client.py
+```
 
 ---
 
