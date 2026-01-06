@@ -1,4 +1,7 @@
 ![Master-MCP](docs/gemini-gen-cover.png)
+
+Blogpost with evidence of importance - pending
+
 ## Master-MCP
 
 Master-MCP is a **proxy MCP server** that can connect to any number of other MCP servers and expose all of their tools through a **single stdio MCP endpoint**.
