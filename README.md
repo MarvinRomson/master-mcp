@@ -239,6 +239,7 @@ These are not fully implemented yet, but the architecture is oriented around the
 - Monitoring tools
 - Tools heirarchy mechanics
 - Tools orchestration
+- Add Skills and prompts (just a prompt with no tool execution)
 
 ---
 
