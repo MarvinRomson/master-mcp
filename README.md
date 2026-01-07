@@ -25,7 +25,7 @@ This repository contains a minimal Python implementation of such a proxy on top 
   Master-MCP loads all remote tools, writes their schemas into `schemas/tools.json`, and keeps a hash to detect modifications.
 
 - ✏️ **Built‑in schema editor UI**  
-  A small FastAPI + Uvicorn web app (`schema_editor.py`) is started automatically (default on port `8001`) so you can edit the tools JSON schema live in your browser.
+  A small FastAPI + Uvicorn web app (`schema_editor.py`) is started automatically (default on port `8001`) so you can edit the tools JSON schema live in your browser: delete tools, parameters, edit the descriptions - everything to make the tool usage tailored to your business needs.
 
 ---
 
@@ -232,6 +232,7 @@ These are not fully implemented yet, but the architecture is oriented around the
 
 ## Roadmap / Ideas
 
+- Code execution mode (with different languages integration)
 - Visual UI to enable/disable tools and MCPs at runtime
 - Advanced security model (user roles, sandboxing, explicit confirmations)
 - Optional HTTP/WebSocket transport in addition to stdio
