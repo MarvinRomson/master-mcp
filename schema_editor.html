@@ -8,97 +8,473 @@
       href="https://unpkg.com/jsoneditor@latest/dist/jsoneditor.min.css"
     />
     <style>
+      :root {
+        color-scheme: dark light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         margin: 0;
         padding: 0;
-        background: #fafafa;
+        background: radial-gradient(circle at top, #111827 0, #020617 45%, #020617 100%);
+        color: #0f172a;
       }
+
       header {
-        background: #111827;
+        background: rgba(15, 23, 42, 0.9);
         color: #f9fafb;
-        padding: 12px 20px;
+        padding: 14px 28px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+        backdrop-filter: blur(10px);
       }
+
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.03em;
+      }
+
+      header .subtitle {
+        margin-top: 4px;
+        font-size: 13px;
+        opacity: 0.8;
+      }
+
+      .page {
+        min-height: calc(100vh - 56px);
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: 18px 20px 26px;
+      }
+
       .container {
-        padding: 16px 20px 32px 20px;
-      }
-      #editor {
-        height: 600px;
+        width: 100%;
+        max-width: 1180px;
+        background: #f9fafb;
+        border-radius: 14px;
         border: 1px solid #e5e7eb;
-        border-radius: 6px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+        padding: 16px 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .container-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 0 4px 4px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .container-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .container-description {
+        font-size: 13px;
+        color: #6b7280;
+      }
+
+      #editor {
+        height: 620px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
         background: #ffffff;
+        /* Allow JSONEditor overlays (like the search bar) to be fully visible */
+        overflow: visible;
       }
+
+      .editor-wrapper {
+        margin-top: 10px;
+      }
+
+      #schema-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .section {
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        padding: 10px 12px 11px;
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .section-hint {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+
+      .section-body {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #4b5563;
+      }
+
       .actions {
-        margin-top: 12px;
         display: flex;
         gap: 8px;
         align-items: center;
         flex-wrap: wrap;
       }
-      .delete-controls {
-        margin-top: 12px;
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
+
       button {
         cursor: pointer;
-        border-radius: 4px;
+        border-radius: 6px;
         border: 1px solid #111827;
         background: #111827;
         color: #f9fafb;
-        padding: 6px 12px;
-        font-size: 14px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 1px rgba(15, 23, 42, 0.25);
+        transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease,
+          transform 0.05s ease;
       }
+
+      button:hover {
+        background: #020617;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+        transform: translateY(-0.5px);
+      }
+
+      button:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+      }
+
       button.secondary {
         background: #ffffff;
         color: #111827;
+        border-color: #d1d5db;
+        box-shadow: none;
       }
+
+      button.secondary:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+      }
+
       .status {
-        font-size: 13px;
+        font-size: 12px;
         color: #4b5563;
       }
+
       .error {
         color: #b91c1c;
       }
-      input[type="text"] {
-        padding: 4px 8px;
-        font-size: 13px;
-        border-radius: 4px;
+
+      input[type="text"],
+      select {
+        padding: 5px 8px;
+        font-size: 12px;
+        border-radius: 6px;
         border: 1px solid #d1d5db;
+        min-width: 0;
+        width: 100%;
+      }
+
+      .inline-inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .inline-inputs-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      label {
+        font-size: 12px;
+        color: #374151;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .codeexec-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .codeexec-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #111827;
+      }
+
+      .codeexec-toggle input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+      }
+
+      .codeexec-options {
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .delete-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .delete-controls-row {
+        display: flex;
+        gap: 6px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        padding: 2px 7px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6b7280;
+      }
+
+      .hint-muted {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+
+      .code-hint {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        background: #f3f4f6;
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 11px;
+      }
+
+      /* JSONEditor theming: dark editor with readable toolbar & search */
+      .jsoneditor {
+        background: #020617;
+        color: #e5e7eb;
+      }
+
+      .jsoneditor-menu {
+        background: #020617;
+        color: #e5e7eb;
+        border-bottom: 1px solid #1f2937;
+      }
+
+      .jsoneditor-menu button,
+      .jsoneditor-menu a,
+      .jsoneditor-modes > button {
+        color: #e5e7eb;
+      }
+
+      .jsoneditor-tree,
+      .jsoneditor-field,
+      .jsoneditor-value {
+        color: #e5e7eb;
+      }
+
+      .jsoneditor-search {
+        background: transparent;
+        padding: 0 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .jsoneditor-search input {
+        background: #020617;
+        color: #e5e7eb;
+        border: 1px solid #4b5563;
         min-width: 260px;
+        width: auto;
+        max-width: 360px;
+      }
+
+      .jsoneditor-search span {
+        color: #e5e7eb;
+      }
+
+      @media (max-width: 960px) {
+        #editor {
+          height: 520px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        header {
+          padding: 10px 16px;
+        }
+
+        .page {
+          padding: 12px;
+        }
+
+        .container {
+          padding: 12px 12px 14px;
+        }
       }
     </style>
   </head>
   <body>
     <header>
-      <h1 style="margin: 0; font-size: 18px;">Master-MCP Tools Schema Editor</h1>
-      <div style="font-size: 13px; opacity: 0.8;">Edit the JSON schema for tools exposed by Master-MCP.</div>
+      <h1>Master-MCP Tools Schema Editor</h1>
+      <div class="subtitle">Edit and maintain the JSON schema for tools exposed by Master-MCP.</div>
     </header>
-    <div class="container">
-      <!-- Raw JSON from server, consumed by client-side JS -->
-      <script id="schema-data" type="application/json">SCHEMA_JSON_PLACEHOLDER</script>
-
-      <div id="editor"></div>
-
-      <form id="schema-form" action="/update" method="post">
-        <!-- This hidden field will be populated with pretty-printed JSON on submit -->
-        <input type="hidden" name="schema" id="schema-input" />
-        <div class="actions">
-          <button type="submit">Save</button>
-          <button type="button" class="secondary" id="format-btn">Format JSON</button>
-          <span class="status" id="status">JSON is loaded.</span>
+    <div class="page">
+      <div class="container">
+        <div class="container-header">
+          <div>
+            <div class="container-title">Tools schema</div>
+            <div class="container-description">
+              Use the editor to tweak tool definitions, then save to update <code>schemas/tools.json</code>.
+            </div>
+          </div>
+          <span class="badge">JSON schema</span>
         </div>
-        <div class="delete-controls">
-          <input
-            type="text"
-            id="delete-path"
-            placeholder="Path to key (e.g. 0.tools.1.name)"
-          />
-          <button type="button" class="secondary" id="delete-btn">Delete path</button>
+
+        <!-- Raw JSON from server, consumed by client-side JS -->
+        <script id="schema-data" type="application/json">SCHEMA_JSON_PLACEHOLDER</script>
+
+        <form id="schema-form" action="/update" method="post">
+          <!-- This hidden field will be populated with pretty-printed JSON on submit -->
+          <input type="hidden" name="schema" id="schema-input" />
+
+          <section class="section">
+            <div class="section-header">
+              <div class="section-title">Save schema</div>
+              <div class="section-hint">Validation happens before saving.</div>
+            </div>
+            <div class="section-body">
+              <div class="actions">
+                <button type="submit">Save changes</button>
+                <button type="button" class="secondary" id="format-btn">Format JSON</button>
+                <span class="status" id="status">JSON is loaded.</span>
+              </div>
+              <p class="hint-muted">
+                The editor works in <strong>tree</strong> or <strong>code</strong> mode. Use the toolbar inside the
+                JSON editor to switch views.
+              </p>
+            </div>
+          </section>
+
+          <!-- CodeExec mode controls -->
+          <section class="section">
+            <div class="section-header">
+              <div class="section-title">CodeExec automation</div>
+              <div class="section-hint">Generate helper instructions from the tools list.</div>
+            </div>
+            <div class="section-body">
+              <div class="codeexec-controls">
+                <label class="codeexec-toggle">
+                  <input type="checkbox" id="codeexec-enabled" name="codeexec_enabled" />
+                  Enable CodeExec mode after saving
+                </label>
+                <p class="hint-muted">
+                  When enabled, a helper process will generate <span class="code-hint">AGENTS.md</span> (or a skills
+                  folder) based on the current tools.
+                </p>
+                <div id="codeexec-options" class="codeexec-options" style="display: none;">
+                  <div class="inline-inputs">
+                    <div class="inline-inputs-row">
+                      <label style="flex: 1 1 40%;">
+                        Mode
+                        <select id="codeexec-mode" name="codeexec_mode">
+                          <option value="single" selected>Single file</option>
+                          <option value="skills">Skills folder</option>
+                        </select>
+                      </label>
+                      <label style="flex: 1 1 60%;">
+                        Instructions file / folder name
+                        <input
+                          type="text"
+                          id="codeexec-name"
+                          name="codeexec_name"
+                          value="AGENTS.md"
+                        />
+                      </label>
+                    </div>
+                    <div class="inline-inputs-row">
+                      <label style="flex: 1 1 100%;">
+                        Language
+                        <select id="codeexec-lang" name="codeexec_lang">
+                          <option value="python" selected>Python</option>
+                          <option value="typescript">TypeScript</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <div class="section-title">Advanced: delete by path</div>
+              <div class="section-hint">Power tool for pruning nested keys.</div>
+            </div>
+            <div class="section-body">
+              <div class="delete-controls">
+                <p class="hint-muted">
+                  Enter a dotted path into the current JSON (for example
+                  <span class="code-hint">0.tools.1.name</span>) and click <strong>Delete path</strong>. This updates
+                  the JSON in the editor only; changes are not saved until you click
+                  <strong>Save changes</strong>.
+                </p>
+                <div class="delete-controls-row">
+                  <input
+                    type="text"
+                    id="delete-path"
+                    placeholder="Path to key (e.g. 0.tools.1.name)"
+                  />
+                  <button type="button" class="secondary" id="delete-btn">Delete path</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </form>
+
+        <div class="editor-wrapper">
+          <div id="editor"></div>
         </div>
-      </form>
+      </div>
     </div>
 
     <!-- JSONEditor script from CDN -->
@@ -112,6 +488,8 @@
         const formatBtn = document.getElementById('format-btn');
         const deletePathInput = document.getElementById('delete-path');
         const deleteBtn = document.getElementById('delete-btn');
+        const codeexecEnabled = document.getElementById('codeexec-enabled');
+        const codeexecOptions = document.getElementById('codeexec-options');
 
         // Create JSON editor instance
         const editor = new JSONEditor(container, {
@@ -225,6 +603,11 @@
           }
         });
 
+        // Toggle visibility of CodeExec options based on checkbox
+        codeexecEnabled.addEventListener('change', function () {
+          codeexecOptions.style.display = this.checked ? 'flex' : 'none';
+        });
+
         // On submit, validate JSON and send pretty-printed version
         form.addEventListener('submit', function (e) {
           try {
@@ -243,4 +626,3 @@
     </script>
   </body>
 </html>
-

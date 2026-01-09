@@ -78,7 +78,13 @@ async def index():
     return html
 
 @app.post("/update")
-async def update(schema: str = Form(...)):
+async def update(
+    schema: str = Form(...),
+    codeexec_enabled: bool = Form(False),
+    codeexec_mode: str = Form("single"),
+    codeexec_name: str = Form("AGENTS.md"),
+    codeexec_lang: str = Form("both"),
+):
     try:
         # Accept either a JSON array of tools or an object that already wraps
         # the tools in a "modified" field. We normalize to the internal
@@ -96,18 +102,55 @@ async def update(schema: str = Form(...)):
             return {"error": "Top-level JSON must be an array of tools or an object with a 'modified' array"}
 
         hash_val = hashlib.sha256(json.dumps(tools, sort_keys=True).encode()).hexdigest()
-        with open(schema_path(), "w") as f:
+        schema_file = schema_path()
+        with open(schema_file, "w") as f:
             json.dump(
                 {"modified": tools, "modified_hash": hash_val},
                 f,
                 indent=2
             )
+
+        # If CodeExec mode is enabled, launch the helper that generates
+        # AGENTS.md / CLAUDE.md or a skills folder based on the current tools.
+        if codeexec_enabled:
+            # Normalise and provide a reasonable default for the instructions name
+            name = (codeexec_name or "").strip() or "AGENTS.md"
+            mode = (codeexec_mode or "single").strip().lower()
+            lang = (codeexec_lang or "both").strip().lower()
+
+            available_tools_script = os.path.join(file_dir, "tcf.py")
+
+            # Fire-and-forget; schema update should not be blocked by this.
+            # Any errors are ignored here and should be debugged via logs.
+            try:
+                subprocess.Popen(
+                    [
+                        "python",
+                        available_tools_script,
+                        "--mode",
+                        mode,
+                        "--name",
+                        name,
+                        "--lang",
+                        lang,
+                    ],
+                    cwd=file_dir,
+                )
+            except Exception:
+                # Best-effort; schema saving must still succeed even if
+                # CodeExec generation fails for some reason.
+                pass
+
         return RedirectResponse("/", status_code=303)
     except json.JSONDecodeError:
         return {"error": "Invalid JSON"}
     
 if __name__=="__main__":
     corn = False
+
+    # proc = subprocess.Popen(
+    #         ["python", "master_mcp_client.py"]
+    # )
 
     if corn:
         uvicorn.run(

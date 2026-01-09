@@ -27,6 +27,22 @@ This repository contains a minimal Python implementation of such a proxy on top 
 - ✏️ **Built‑in schema editor UI**  
   A small FastAPI + Uvicorn web app (`schema_editor.py`) is started automatically (default on port `8001`) so you can edit the tools JSON schema live in your browser: delete tools, parameters, edit the descriptions - everything to make the tool usage tailored to your business needs.
 
+- 💻 **Switch to Code Execution Mode**
+  Code Execution mode follows [Anthropic's approach](https://www.anthropic.com/engineering/code-execution-with-mcp) where MCPs provide integrations, but the tools can be inserted inside Python or TypeScript code to be used with the code execution. That can be effective for better context management and repetitive tool calling cases.
+
+---
+
+## Code execution mode
+
+In code execution mode a separate FastAPI. This FastAPI connects to the MasterMCP as a client. At the same time special tool execution code snippets are generated as well as AGENTS.md or CLAUDE.md - these files should be put to the AI Agent workdir. Also skills-type code execution supported.
+
+To launch:
+1. Run `python master_mcp_client.py`
+2. Go to the schema editor at `localhost:8001`
+3. Press checkbox at CodeExec mode, finish setup and press "Save" button - all the files should be generated in your workdir (place them to the agent's workdir)
+
+Now your agent can call the function in code execution mode. Functions execution will happen the following way `Function->FastAPI->MasterMCP->Internal MCP`
+
 ---
 
 ## Schema editor screenshot

@@ -10,5 +10,12 @@
     "echarts": {
         "command": "npx",
         "args": ["-y", "mcp-echarts"]
+    },
+    "weather": {
+        "command": "npx",
+        "args": [
+            "-y",
+            "@h1deya/mcp-server-weather"
+        ]
     }
 }
