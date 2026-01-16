@@ -286,6 +286,33 @@
         font-size: 11px;
       }
 
+      /* simple toast */
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        background: rgba(17, 24, 39, 0.95);
+        color: #f9fafb;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 12px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
+        display: none;
+        max-width: 320px;
+        z-index: 9999;
+      }
+
+      .toast strong {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+
+      .toast .toast-muted {
+        opacity: 0.85;
+      }
+
       /* JSONEditor theming: dark editor with readable toolbar & search */
       .jsoneditor {
         background: #020617;
@@ -371,6 +398,7 @@
 
         <!-- Raw JSON from server, consumed by client-side JS -->
         <script id="schema-data" type="application/json">SCHEMA_JSON_PLACEHOLDER</script>
+        <script id="settings-data" type="application/json">SETTINGS_JSON_PLACEHOLDER</script>
 
         <form id="schema-form" action="/update" method="post">
           <!-- This hidden field will be populated with pretty-printed JSON on submit -->
@@ -395,6 +423,57 @@
           </section>
 
           <!-- CodeExec mode controls -->
+          <section class="section">
+            <div class="section-header">
+              <div class="section-title">Tools search + defaults</div>
+              <div class="section-hint">Control Search MCP exposure and tool visibility.</div>
+            </div>
+            <div class="section-body">
+              <label class="codeexec-toggle">
+                <input type="checkbox" id="expose-tools-search" name="expose_tools_search" />
+                Expose tools search tool (adds Search MCP)
+              </label>
+              <p class="hint-muted">
+                When enabled, Master-MCP will inject the Search MCP and expose tools
+                <span class="code-hint">search-search_regex_tools</span> and
+                <span class="code-hint">search-search_bm25_tools</span>.
+              </p>
+
+              <input type="hidden" id="default-tool-names" name="default_tool_names" />
+
+              <div class="inline-inputs" id="defaults-picker">
+                <div class="inline-inputs-row">
+                  <label style="flex: 1 1 50%;">
+                    Filter searchable tools
+                    <input type="text" id="tool-filter" placeholder="Type to filter..." />
+                  </label>
+                  <div style="flex: 1 1 50%;" class="hint-muted">
+                    Default tools are returned by <span class="code-hint">list_tools()</span>.
+                    Others are hidden by default but searchable via Search MCP.
+                  </div>
+                </div>
+
+                <div class="inline-inputs-row" style="align-items: stretch;">
+                  <label style="flex: 1 1 45%;">
+                    Searchable
+                    <select id="available-tools" size="10" multiple></select>
+                  </label>
+
+                  <div style="flex: 0 0 120px; display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                    <button type="button" class="secondary" id="add-default">Add →</button>
+                    <button type="button" class="secondary" id="remove-default">← Remove</button>
+                    <button type="button" class="secondary" id="clear-default">Clear</button>
+                  </div>
+
+                  <label style="flex: 1 1 45%;">
+                    Default
+                    <select id="default-tools" size="10" multiple></select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="section">
             <div class="section-header">
               <div class="section-title">CodeExec automation</div>
@@ -477,6 +556,11 @@
       </div>
     </div>
 
+    <div class="toast" id="toast">
+      <strong id="toast-title">Saved</strong>
+      <div class="toast-muted" id="toast-body">Changes saved. Refreshing…</div>
+    </div>
+
     <!-- JSONEditor script from CDN -->
     <script src="https://unpkg.com/jsoneditor@latest/dist/jsoneditor.min.js"></script>
     <script>
@@ -490,6 +574,55 @@
         const deleteBtn = document.getElementById('delete-btn');
         const codeexecEnabled = document.getElementById('codeexec-enabled');
         const codeexecOptions = document.getElementById('codeexec-options');
+        const exposeToolsSearch = document.getElementById('expose-tools-search');
+        const defaultToolNames = document.getElementById('default-tool-names');
+        const toolFilter = document.getElementById('tool-filter');
+        const availableTools = document.getElementById('available-tools');
+        const defaultTools = document.getElementById('default-tools');
+        const addDefaultBtn = document.getElementById('add-default');
+        const removeDefaultBtn = document.getElementById('remove-default');
+        const clearDefaultBtn = document.getElementById('clear-default');
+        const defaultsPicker = document.getElementById('defaults-picker');
+        const toast = document.getElementById('toast');
+        const toastTitle = document.getElementById('toast-title');
+        const toastBody = document.getElementById('toast-body');
+
+        let toastHideTimer = null;
+
+        function showToast(title, body, autoHideMs) {
+          if (!toast) return;
+          toastTitle.textContent = title;
+          toastBody.textContent = body;
+          toast.style.display = 'block';
+
+          if (toastHideTimer) {
+            clearTimeout(toastHideTimer);
+            toastHideTimer = null;
+          }
+
+          if (typeof autoHideMs === 'number' && autoHideMs > 0) {
+            toastHideTimer = setTimeout(() => {
+              if (toast) toast.style.display = 'none';
+              toastHideTimer = null;
+            }, autoHideMs);
+          }
+        }
+
+        // Show server-confirmed save toast after redirect (?saved=1)
+        (function showSavedOnRedirect() {
+          try {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('saved') === '1') {
+              showToast('Saved', 'Changes saved. Page refreshed.', 0);
+              // Clean URL without reloading
+              // Keep the query param for now; removing it immediately can cause
+              // some browsers to repaint aggressively. If you want URL cleanup,
+              // we can do it after a few seconds.
+            }
+          } catch (e) {
+            // ignore
+          }
+        })();
 
         // Create JSON editor instance
         const editor = new JSONEditor(container, {
@@ -502,6 +635,10 @@
           onChange: function () {
             statusEl.textContent = 'Unsaved changes';
             statusEl.classList.remove('error');
+
+            // Keep picker in sync with JSON updates.
+            // (e.g. tool names changed, removed, added)
+            syncWithSchema();
           }
         });
 
@@ -523,6 +660,157 @@
             statusEl.classList.add('error');
           }
         })();
+
+        (function loadSettings() {
+          const settingsTag = document.getElementById('settings-data');
+          let raw = settingsTag ? settingsTag.textContent : '{}';
+          if (!raw || !raw.trim()) raw = '{}';
+          try {
+            const settings = JSON.parse(raw);
+            exposeToolsSearch.checked = !!settings.expose_tools_search;
+            const names = Array.isArray(settings.default_tool_names)
+              ? settings.default_tool_names
+              : [];
+            // Populate defaults list
+            names.forEach((name) => {
+              const opt = document.createElement('option');
+              opt.value = name;
+              opt.textContent = name;
+              defaultTools.appendChild(opt);
+            });
+          } catch (e) {
+            console.warn('Failed to parse settings JSON', e);
+          }
+        })();
+
+        function getSchemaTools() {
+          try {
+            const data = editor.get();
+            if (!Array.isArray(data)) return [];
+            return data;
+          } catch {
+            return [];
+          }
+        }
+
+        function getSchemaToolNames() {
+          return getSchemaTools()
+            .map((t) => t && t.name)
+            .filter((n) => typeof n === 'string' && n.trim());
+        }
+
+        function setHiddenDefaultsFromList() {
+          const names = Array.from(defaultTools.options).map((o) => o.value);
+          defaultToolNames.value = names.join(',');
+        }
+
+        function setDefaultsToAllTools() {
+          // When search is disabled, everything is default.
+          defaultTools.innerHTML = '';
+          getSchemaToolNames().sort().forEach((name) => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            defaultTools.appendChild(opt);
+          });
+          setHiddenDefaultsFromList();
+        }
+
+        function clearDefaults() {
+          defaultTools.innerHTML = '';
+          setHiddenDefaultsFromList();
+        }
+
+        function dropNonExistingDefaults() {
+          const existing = new Set(getSchemaToolNames());
+          Array.from(defaultTools.options).forEach((o) => {
+            if (!existing.has(o.value)) o.remove();
+          });
+        }
+
+        function syncWithSchema() {
+          // If search disabled: defaults = all tools.
+          if (!exposeToolsSearch.checked) {
+            defaultsPicker.style.display = 'none';
+            setDefaultsToAllTools();
+            return;
+          }
+
+          // If search enabled: show picker, ensure selected defaults still exist,
+          // then rebuild available list.
+          defaultsPicker.style.display = 'flex';
+
+          // If search enabled and defaults empty, we keep defaults empty.
+          // This means everything is initially searchable, and user explicitly
+          // selects which tools are returned by list_tools().
+          if (defaultTools.options.length === 0) {
+            clearDefaults();
+          }
+
+          dropNonExistingDefaults();
+          rebuildAvailableList();
+          setHiddenDefaultsFromList();
+        }
+
+        function rebuildAvailableList() {
+          const filter = (toolFilter.value || '').trim().toLowerCase();
+          const allNames = getSchemaToolNames();
+          const defaultSet = new Set(Array.from(defaultTools.options).map((o) => o.value));
+
+          const candidates = allNames
+            .filter((name) => !defaultSet.has(name))
+            .filter((name) => !filter || name.toLowerCase().includes(filter))
+            .sort();
+
+          availableTools.innerHTML = '';
+          candidates.forEach((name) => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            availableTools.appendChild(opt);
+          });
+        }
+
+        // initial available list build (after editor initialised)
+        // Apply initial sync based on settings
+        // Ensure settings are applied after both schema + settings are loaded.
+        // Also run twice to handle timing edge cases in JSONEditor rendering.
+        setTimeout(syncWithSchema, 0);
+        setTimeout(syncWithSchema, 50);
+
+        toolFilter.addEventListener('input', rebuildAvailableList);
+
+        exposeToolsSearch.addEventListener('change', function () {
+          // When turning ON search, start with empty defaults.
+          if (this.checked) {
+            clearDefaults();
+          }
+          syncWithSchema();
+        });
+
+        addDefaultBtn.addEventListener('click', function () {
+          const selected = Array.from(availableTools.selectedOptions).map((o) => o.value);
+          selected.forEach((name) => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            defaultTools.appendChild(opt);
+          });
+          rebuildAvailableList();
+          setHiddenDefaultsFromList();
+        });
+
+        removeDefaultBtn.addEventListener('click', function () {
+          Array.from(defaultTools.selectedOptions).forEach((o) => o.remove());
+          rebuildAvailableList();
+          setHiddenDefaultsFromList();
+        });
+
+        clearDefaultBtn.addEventListener('click', function () {
+          defaultTools.innerHTML = '';
+          rebuildAvailableList();
+          setHiddenDefaultsFromList();
+        });
 
         // Helper to get JSON safely and pretty-print it
         function getPrettyJSON() {
@@ -613,8 +901,16 @@
           try {
             const pretty = getPrettyJSON();
             hiddenInput.value = pretty;
+            // Ensure defaults are consistent before submit
+            syncWithSchema();
             statusEl.textContent = 'Saving...';
             statusEl.classList.remove('error');
+
+            // Optimistic UX: show a toast during redirect.
+            showToast('Saving', 'Saving changes. The page will refresh…', 0);
+
+            // Prevent any other code from immediately hiding it.
+            // The toast will be replaced by the server-confirmed toast after redirect.
           } catch (err) {
             e.preventDefault();
             statusEl.textContent = 'Invalid JSON: ' + err.message;

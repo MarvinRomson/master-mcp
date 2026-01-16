@@ -1,0 +1,18 @@
+{
+  "expose_tools_search": false,
+  "default_tool_names": [
+    "echarts-generate_boxplot_chart",
+    "echarts-generate_candlestick_chart",
+    "echarts-generate_funnel_chart",
+    "echarts-generate_gauge_chart",
+    "echarts-generate_graph_chart",
+    "echarts-generate_heatmap_chart",
+    "echarts-generate_parallel_chart",
+    "echarts-generate_radar_chart",
+    "echarts-generate_sankey_chart",
+    "echarts-generate_scatter_chart",
+    "echarts-generate_sunburst_chart",
+    "echarts-generate_tree_chart",
+    "echarts-generate_treemap_chart"
+  ]
+}

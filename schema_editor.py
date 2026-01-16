@@ -16,6 +16,8 @@ parent_dir = os.path.dirname(file_dir)
 SCHEMA_DIR = os.path.join(file_dir, "schemas")
 os.makedirs(SCHEMA_DIR, exist_ok=True)
 
+SETTINGS_PATH = os.path.join(SCHEMA_DIR, "ui_settings.json")
+
 app = FastAPI()
 
 def is_port_open(host: str, port: int) -> bool:
@@ -52,6 +54,38 @@ def _ensure_editor(editor_port):
 def schema_path(name="tools.json"):
     return os.path.join(SCHEMA_DIR, name)
 
+
+def _write_tools_file(path: str, tools: list) -> None:
+    hash_val = hashlib.sha256(json.dumps(tools, sort_keys=True).encode()).hexdigest()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"modified": tools, "modified_hash": hash_val}, f, indent=2)
+
+
+def _load_settings() -> dict:
+    if not os.path.exists(SETTINGS_PATH):
+        return {
+            "expose_tools_search": False,
+            "default_tool_names": [],
+            "codeexec_enabled": False,
+        }
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            parsed = json.load(f)
+        if not isinstance(parsed, dict):
+            return {"expose_tools_search": False, "default_tool_names": []}
+        return {
+            "expose_tools_search": bool(parsed.get("expose_tools_search", False)),
+            "default_tool_names": list(parsed.get("default_tool_names", []) or []),
+            "codeexec_enabled": bool(parsed.get("codeexec_enabled", False)),
+        }
+    except Exception:
+        return {"expose_tools_search": False, "default_tool_names": [], "codeexec_enabled": False}
+
+
+def _save_settings(settings: dict) -> None:
+    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=2)
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Render the schema editor page, loading the current tools schema."""
@@ -66,6 +100,8 @@ async def index():
     except FileNotFoundError:
         schema = "[]"
 
+    settings = _load_settings()
+
     # Load HTML template from external file and inject the JSON schema.
     template_path = os.path.join(file_dir, "schema_editor.html")
     try:
@@ -75,11 +111,16 @@ async def index():
         return "<html><body><h1>Schema Editor template not found</h1></body></html>"
 
     html = html_template.replace("SCHEMA_JSON_PLACEHOLDER", schema)
+    html = html.replace(
+        "SETTINGS_JSON_PLACEHOLDER", json.dumps(settings, ensure_ascii=False)
+    )
     return html
 
 @app.post("/update")
 async def update(
     schema: str = Form(...),
+    expose_tools_search: bool = Form(False),
+    default_tool_names: str = Form(""),
     codeexec_enabled: bool = Form(False),
     codeexec_mode: str = Form("single"),
     codeexec_name: str = Form("AGENTS.md"),
@@ -101,14 +142,33 @@ async def update(
         if not isinstance(tools, list):
             return {"error": "Top-level JSON must be an array of tools or an object with a 'modified' array"}
 
-        hash_val = hashlib.sha256(json.dumps(tools, sort_keys=True).encode()).hexdigest()
-        schema_file = schema_path()
-        with open(schema_file, "w") as f:
-            json.dump(
-                {"modified": tools, "modified_hash": hash_val},
-                f,
-                indent=2
-            )
+        _write_tools_file(schema_path("tools.json"), tools)
+
+        # Persist UI settings
+        try:
+            parsed_default_names = [
+                x.strip()
+                for x in (default_tool_names or "").split(",")
+                if x.strip()
+            ]
+        except Exception:
+            parsed_default_names = []
+
+        _save_settings(
+            {
+                "expose_tools_search": bool(expose_tools_search),
+                "default_tool_names": parsed_default_names,
+                "codeexec_enabled": bool(codeexec_enabled),
+            }
+        )
+
+        # Update derived catalogs
+        default_tools = [t for t in tools if t.get("name") in set(parsed_default_names)]
+        _write_tools_file(schema_path("default_tools.json"), default_tools)
+
+        # Searchable catalog: everything that's not default.
+        search_tools = [t for t in tools if t.get("name") not in set(parsed_default_names)]
+        _write_tools_file(schema_path("search_tools.json"), search_tools)
 
         # If CodeExec mode is enabled, launch the helper that generates
         # AGENTS.md / CLAUDE.md or a skills folder based on the current tools.
@@ -141,7 +201,9 @@ async def update(
                 # CodeExec generation fails for some reason.
                 pass
 
-        return RedirectResponse("/", status_code=303)
+        # Add a query param so the frontend can display a "Saved" toast after
+        # the redirect completes (server-confirmed success).
+        return RedirectResponse("/?saved=1", status_code=303)
     except json.JSONDecodeError:
         return {"error": "Invalid JSON"}
     

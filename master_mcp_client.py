@@ -51,6 +51,36 @@ file_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(file_dir)
 
 
+def _read_ui_settings(schema_dir: str) -> dict:
+    settings_path = os.path.join(schema_dir, "ui_settings.json")
+    if not os.path.exists(settings_path):
+        return {"expose_tools_search": False, "default_tool_names": [], "codeexec_enabled": False}
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return {"expose_tools_search": False, "default_tool_names": []}
+        return {
+            "expose_tools_search": bool(data.get("expose_tools_search", False)),
+            "default_tool_names": list(data.get("default_tool_names", []) or []),
+            "codeexec_enabled": bool(data.get("codeexec_enabled", False)),
+        }
+    except Exception:
+        return {"expose_tools_search": False, "default_tool_names": [], "codeexec_enabled": False}
+
+
+def _load_tools_json(schema_dir: str, filename: str) -> list[Tool]:
+    path = os.path.join(schema_dir, filename)
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        parsed = json.load(f)
+    tools = parsed.get("modified") if isinstance(parsed, dict) else None
+    if not isinstance(tools, list):
+        return []
+    return [Tool.model_validate(x) for x in tools]
+
+
 class MasterMCP:
     # initialize all the clients to external MCPs, but manages the tool names and description by itself
     def __init__(self, clients, tools, schema_dir=os.path.join(file_dir, "schemas")):
@@ -75,12 +105,30 @@ class MasterMCP:
         _ensure_editor(8001)
 
     def _save_schema(self, schema):
+        # `tools.json` is the default discovered tool catalog.
         with open(os.path.join(self.schema_dir, "tools.json"), "w") as f:
             json.dump(
                 {"modified": [x.model_dump(exclude_none=False) for x in schema], "modified_hash": self._schema_hash([x.model_dump(exclude_none=False) for x in schema])},
                 f,
                 indent=2
             )
+
+        # `search_tools.json` is the curated subset used by Search MCP.
+        # We create it on first run as a copy of the default catalog so
+        # users can later trim/edit it without affecting the default.
+        search_path = os.path.join(self.schema_dir, "search_tools.json")
+        if not os.path.exists(search_path):
+            with open(search_path, "w") as f:
+                json.dump(
+                    {
+                        "modified": [x.model_dump(exclude_none=False) for x in schema],
+                        "modified_hash": self._schema_hash(
+                            [x.model_dump(exclude_none=False) for x in schema]
+                        ),
+                    },
+                    f,
+                    indent=2,
+                )
 
     def _schema_hash(self, schema):
         return hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
@@ -109,6 +157,17 @@ class MasterMCP:
 
     @classmethod
     async def create(cls, configs):
+        # Always enable the Search MCP client internally so it is immediately
+        # available to Master-MCP.
+        # Exposure (whether it shows up in schemas/tools.json and list_tools)
+        # is controlled separately via schema editor settings.
+        configs = dict(configs)
+        if "search" not in configs:
+            configs["search"] = {
+                "command": "python",
+                "args": ["search_mcp_server.py"],
+            }
+
         clients = {key: await cls.activate_client(cfg) for key, cfg in configs.items()}
         # avoid same names in the clients tools
         # for each MCP we also receive its name given by the user
@@ -137,6 +196,17 @@ class MasterMCP:
         logger.info(
             f"MasterMCP: Created {len(tools)} total tools: {list(tools.keys())}"
         )
+
+        # Filter out search tools from the exposed schema unless enabled.
+        try:
+            settings = _read_ui_settings(os.path.join(file_dir, "schemas"))
+            expose_search = bool(settings.get("expose_tools_search", False))
+        except Exception:
+            expose_search = False
+
+        if not expose_search:
+            tools = {name: meta for name, meta in tools.items() if not name.startswith("search-")}
+
         return cls(clients, tools)
 
     @staticmethod
@@ -148,9 +218,22 @@ class MasterMCP:
 
     async def list_tools(self) -> list[types.Tool]:
         """List available tools with structured output schemas."""
-        # load it from file
+        # Load tool schemas from disk (tools.json) and then apply "default tools"
+        # filtering if configured via schema editor.
         self._load_modified()
-        return self.tools_list
+
+        settings = _read_ui_settings(self.schema_dir)
+        default_names = set(settings.get("default_tool_names") or [])
+        if not default_names:
+            # No defaults configured -> preserve previous behaviour
+            return self.tools_list
+
+        # Use derived file if present, otherwise filter in-memory.
+        default_tools = _load_tools_json(self.schema_dir, "default_tools.json")
+        if default_tools:
+            return default_tools
+
+        return [t for t in self.tools_list if t.name in default_names]
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Handle tool calls with structured output."""
@@ -252,6 +335,19 @@ class MCPClient:
 def load_mcp_configs():
     with open(os.path.join(BASE_DIR, "mcps.json"), "r") as file:
         data = json.loads(file.read())
+
+    # Search MCP is always activated internally by Master-MCP (see MasterMCP.create).
+    # The schema editor controls *exposure* (whether search tools are included in
+    # schemas/tools.json and list_tools()), not connectivity.
+
+    # Propagate CodeExec mode to child MCPs (e.g. Search MCP formatting).
+    # This is set by the schema editor when the user enables CodeExec.
+    try:
+        settings = _read_ui_settings(os.path.join(file_dir, "schemas"))
+        os.environ["MASTER_MCP_CODEEXEC"] = "1" if settings.get("codeexec_enabled") else ""
+    except Exception:
+        pass
+
     return data
 
 @asynccontextmanager
