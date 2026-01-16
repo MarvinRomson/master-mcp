@@ -167,7 +167,6 @@ class MasterMCP:
                 "command": "python",
                 "args": ["search_mcp_server.py"],
             }
-
         clients = {key: await cls.activate_client(cfg) for key, cfg in configs.items()}
         # avoid same names in the clients tools
         # for each MCP we also receive its name given by the user
@@ -192,7 +191,7 @@ class MasterMCP:
                     "client": v,
                     "internal_tool_name": internal_tool_name,
                 }
-
+        
         logger.info(
             f"MasterMCP: Created {len(tools)} total tools: {list(tools.keys())}"
         )
@@ -356,7 +355,6 @@ async def main(_server):
     configs = load_mcp_configs()
     master = await MasterMCP.create(configs)
     tools = await master.list_tools()
-
     # @_server.list_tools()
     # async def list_tools():
     #     # load it from file
@@ -382,7 +380,9 @@ master = None
 async def list_tools():
     # load it from file
     logger.info("Calling to list the tools")
-    return await master.list_tools()
+    list = await master.list_tools()
+    logger.info("Called to list the tools")
+    return list
 
 @server.call_tool()
 async def call_tool(name, arguments):

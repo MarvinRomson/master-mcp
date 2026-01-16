@@ -10,11 +10,13 @@ async def main():
     # list tools
     t = await client.session.list_tools()
     print(t)
+    r = await client('search-search_bm25_tools', {'query': "data"})
+    print(r)
     # test tool calling
     r = await client('chart-generate_area_chart', {'data': [{"time": "0", "value": 0}, {"time": "1", "value": 0}]})
     print(r)
     await client.cleanup()
-    print("FINISHED")
+    #print("FINISHED")
 
 
 asyncio.run(main())
