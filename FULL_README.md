@@ -113,7 +113,6 @@ Now your agent can call the function in code execution mode. Functions execution
 The schema editor is being launched at `localhost:8001`
 
 ![Schema editor](docs/schema-editor.png)
-![Remove feature](docs/remove.png)
 
 ## Architecture Overview
 

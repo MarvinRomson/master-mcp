@@ -29,6 +29,32 @@ Then open the schema editor:
 open http://127.0.0.1:8001/
 ```
 
+![Schema editor](docs/schema-editor.png)
+
+## Running Master-MCP with an Agent
+
+### As a stdio MCP server
+
+Use MCP config with your agent (use path to master_mcp_client.py if not in the root):
+```json
+{
+  "master-mcp": {
+        "command": "python",
+        "args": ["master_mcp_client.py"]
+  }
+}
+```
+
+### Using HTTP transport through [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)
+
+```
+npx mcp-proxy \
+  --port 3333 \
+  python master_mcp_client.py
+```
+
+---
+
 ## Documentation
 
 - **Full documentation & architecture**: see **[FULL_README.md](FULL_README.md)**
