@@ -222,7 +222,7 @@ async def list_tools() -> list[types.Tool]:
                         "description": "Regex flags: i (ignorecase), m (multiline), s (dotall)",
                         "default": "i",
                     },
-                    "top_k": {"type": "integer", "description": "Max results", "default": 50},
+                    "top_k": {"type": "integer", "description": "Max results", "default": 3},
                 },
                 "required": ["pattern"],
             },
@@ -237,7 +237,7 @@ async def list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query"},
-                    "top_k": {"type": "integer", "description": "Max results", "default": 10},
+                    "top_k": {"type": "integer", "description": "Max results", "default": 3},
                 },
                 "required": ["query"],
             },
@@ -287,14 +287,14 @@ async def call_tool(name: str, arguments: dict[str, Any]):
     if name == "search_regex_tools":
         pattern = str(arguments.get("pattern", ""))
         flags = str(arguments.get("flags", "i"))
-        top_k = int(arguments.get("top_k", 50))
+        top_k = int(arguments.get("top_k", 3))
         res = _regex_search(tools, pattern, flags=flags, top_k=top_k)
         res = _format_results(res)
         return {"results": res, "count": len(res), "codeexec": _is_codeexec_mode()}
 
     if name == "search_bm25_tools":
         query = str(arguments.get("query", ""))
-        top_k = int(arguments.get("top_k", 10))
+        top_k = int(arguments.get("top_k", 3))
         idx = _Bm25Index(tools)
         res = idx.search(query, top_k=top_k)
         res = _format_results(res)

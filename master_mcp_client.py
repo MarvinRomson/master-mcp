@@ -142,8 +142,20 @@ class MasterMCP:
         modified = data.get("modified")
         mod_hash = data.get("modified_hash")
 
+        try:
+            self.settings = _read_ui_settings(os.path.join(file_dir, "schemas"))
+        except:
+            self.settings = None
+
+        default_tools_names = set(self.settings.get("default_tool_names") or [])
+        
         if modified and mod_hash == self._schema_hash(modified):
             self.tools_list = [Tool.model_validate(json_str) for json_str in  modified]
+
+        self.tools_list = [t for t in self.tools_list if t.name in default_tools_names]
+
+        if self.settings and self.settings.get("expose_tools_search"):
+            self.tools_list += self.clients['search'].tools
 
     @staticmethod
     def _hide_tools_params(tools_list):
@@ -197,14 +209,14 @@ class MasterMCP:
         )
 
         # Filter out search tools from the exposed schema unless enabled.
-        try:
-            settings = _read_ui_settings(os.path.join(file_dir, "schemas"))
-            expose_search = bool(settings.get("expose_tools_search", False))
-        except Exception:
-            expose_search = False
+        # try:
+        #     settings = _read_ui_settings(os.path.join(file_dir, "schemas"))
+        #     expose_search = bool(settings.get("expose_tools_search", False))
+        # except Exception:
+        #     expose_search = False
 
-        if not expose_search:
-            tools = {name: meta for name, meta in tools.items() if not name.startswith("search-")}
+        # if not expose_search:
+        #     tools = {name: meta for name, meta in tools.items() if not name.startswith("search-")}
 
         return cls(clients, tools)
 
@@ -221,18 +233,19 @@ class MasterMCP:
         # filtering if configured via schema editor.
         self._load_modified()
 
-        settings = _read_ui_settings(self.schema_dir)
-        default_names = set(settings.get("default_tool_names") or [])
-        if not default_names:
-            # No defaults configured -> preserve previous behaviour
-            return self.tools_list
+        #settings = _read_ui_settings(self.schema_dir)
+        return self.tools_list
+        # default_names = set(settings.get("default_tool_names") or [])
+        # if not default_names:
+        #     # No defaults configured -> preserve previous behaviour
+        #     return self.tools_list
 
-        # Use derived file if present, otherwise filter in-memory.
-        default_tools = _load_tools_json(self.schema_dir, "default_tools.json")
-        if default_tools:
-            return default_tools
+        # # Use derived file if present, otherwise filter in-memory.
+        # default_tools = _load_tools_json(self.schema_dir, "default_tools.json")
+        # if default_tools:
+        #     return default_tools
 
-        return [t for t in self.tools_list if t.name in default_names]
+        # return [t for t in self.tools_list if t.name in default_names]
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Handle tool calls with structured output."""
